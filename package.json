@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon -r dotenv/config src/index.js" 
-   },
+    "dev": "nodemon -r dotenv/config src/index.js"
+  },
   "author": "Sandesh Pol",
   "license": "ISC",
   "description": "",
@@ -15,6 +15,8 @@
     "prettier": "^3.4.2"
   },
   "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "mongoose": "^8.9.3"
