@@ -1,10 +1,14 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary,deleteFromCloudinary } from "../utils/cloudinary.js";
+import {
+  uploadOnCloudinary,
+  deleteFromCloudinary,
+} from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 const generateAccessAndRefereshTokens = async (userId) => {
   try {
@@ -285,39 +289,39 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Account details updated succesfully..!"));
 });
 
-
 const updateUserAvatar = asyncHandler(async (req, res) => {
-    const avatarLocalPath = req.file?.path;
+  const avatarLocalPath = req.file?.path;
 
-    if (!avatarLocalPath) {
-        throw new ApiError(400, "Avatar file is missing ...!");
-    }
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "Avatar file is missing ...!");
+  }
 
-    const avatar = await uploadOnCloudinary(avatarLocalPath);
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
 
-    if (!avatar.url) {
-        throw new ApiError(400, "Error while uploading file ...!");
-    }
+  if (!avatar.url) {
+    throw new ApiError(400, "Error while uploading file ...!");
+  }
 
-    const user = await User.findById(req.user?._id);
-    const oldAvatarUrl = user?.avatar;
+  const user = await User.findById(req.user?._id);
+  const oldAvatarUrl = user?.avatar;
 
-    const updatedUser = await User.findByIdAndUpdate(
-        req.user?._id,
-        { $set: { avatar: avatar.url } },
-        { new: true }
-    ).select("-password");
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user?._id,
+    { $set: { avatar: avatar.url } },
+    { new: true }
+  ).select("-password");
 
-    if (oldAvatarUrl) {
-        const publicId = oldAvatarUrl.split('/').pop().split('.')[0];
-        await deleteFromCloudinary(publicId);
-    }
+  if (oldAvatarUrl) {
+    const publicId = oldAvatarUrl.split("/").pop().split(".")[0];
+    await deleteFromCloudinary(publicId);
+  }
 
-    return res
-        .status(200)
-        .json(new ApiResponse(200, updatedUser, "Avatar image updated successfully"));
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, updatedUser, "Avatar image updated successfully")
+    );
 });
-
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
   const coverImageLocalPath = req.file?.path;
@@ -347,7 +351,6 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 });
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
-
   const { username } = req.params;
 
   if (!username?.trim()) {
@@ -413,11 +416,57 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(
-      new ApiResponse(200, "User channel fetched successfully..!")
-    );
+    .json(new ApiResponse(200, "User channel fetched successfully..!"));
 });
 
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user._id),
+      },
+    },
+    {
+      $lookup: {
+        from: "Video",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          {
+            $lookup: {
+              from: "User",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    username: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        owner: {
+          $first: "$owner",
+        },
+      },
+    },
+  ]);
+  return res
+  .status(200)
+  .json(
+    new ApiResponse(200,user[0].watchHistory, "Watch history fetched successfully..!")
+  )
+});
 
 export {
   registerUser,
@@ -429,5 +478,6 @@ export {
   updateAccountDetails,
   updateUserAvatar,
   updateUserCoverImage,
-  getUserChannelProfile
+  getUserChannelProfile,
+  getWatchHistory,
 };
