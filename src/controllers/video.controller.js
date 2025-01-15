@@ -7,8 +7,31 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
-  //TODO: get all videos based on query, sort, pagination
+  const {
+    page = 1,
+    limit = 10,
+    query = "",
+    sortBy = "createdAt",
+    sortType = 1,
+    userId = "",
+  } = req.query;
+
+  const videoAggregate = await Video.aggregate([
+    {
+      $match:{
+        $or:[
+          {
+            "title":{$regex:query,$optios:"i"}
+          },
+          {
+            "description":{$regex:query,$optios:"i"}
+          }
+        ]
+      },
+      
+    }
+  ])
+
 });
 
 const publishAVideo = asyncHandler(async (req, res) => {
@@ -44,8 +67,9 @@ const publishAVideo = asyncHandler(async (req, res) => {
     duration: video.duration,
     owner: req.user._id,
   });
-  return res.status(201)
-    .json(new ApiResponse(200, videoPublished, "Video Published Successfully"))
+  return res
+    .status(201)
+    .json(new ApiResponse(200, videoPublished, "Video Published Successfully"));
 });
 
 const getVideoById = asyncHandler(async (req, res) => {
