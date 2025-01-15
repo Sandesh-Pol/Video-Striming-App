@@ -7,97 +7,77 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
-  const {
-    page = 1,
-    limit = 10,
-    query = "",
-    sortBy = "createdAt",
-    sortType = 1,
-    userId = "",
-  } = req.query;
+  const { page = 1, limit = 10, query = "", sortBy = "createdAt", userId = "" } = req.query;
+  const sortType = parseInt(req.query.sortType) || 1;
 
+  let videoAggregate;
   try {
-    const videoAggregate = await Video.aggregate([
-      {
-        $match: {
-          $or: [
-            {
-              title: { $regex: query, $optios: "i" },
-            },
-            {
-              description: { $regex: query, $optios: "i" },
-            },
-          ],
-        },
-      },
-      {
-        $lookup: {
-          from: "User",
-          localField: "owner",
-          foreignField: "_id",
-          as: "owner",
-          pipeline: [
-            {
-              $project: {
-                _id: 1,
-                fullname: 1,
-                avatar: 1,
-                username: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
-        $addFields: {
-          owner: {
-            $first: "$owner",
+      videoAggregate = Video.aggregate([
+          {
+              $match: {
+                  $or: [
+                      { title: { $regex: query, $options: "i" } },
+                      { description: { $regex: query, $options: "i" } }
+                  ]
+              }
           },
-        },
-      },
-
-      {
-        $sort: {
-          [sortBy || "createdAt"]: sortType || 1,
-        },
-      },
-    ]);
+          {
+              $lookup: {
+                  from: "users",
+                  localField: "owner",
+                  foreignField: "_id",
+                  as: "owner",
+                  pipeline: [
+                      {
+                          $project: {
+                              _id: 1,
+                              fullName: 1,
+                              avatar: "$avatar.url",
+                              username: 1,
+                          }
+                      },
+                  ]
+              }
+          },
+          {
+              $addFields: {
+                  owner: { $first: "$owner" }
+              }
+          },
+          {
+              $sort: {
+                  [sortBy]: sortType
+              }
+          },
+      ]);
   } catch (error) {
-    throw new ApiError(
-      500,
-      error.message || "Internal server error in video aggregation"
-    );
+      throw new ApiError(500, error.message || "Internal server error in video aggregation");
   }
 
   const options = {
-    page,
-    limit,
-    customLabels: {
-      totalDocs: "totalVideos",
-      docs: "videos",
-    },
-    skip: (page - 1) * limit,
-    limit: parseInt(limit),
+      page,
+      limit,
+      customLabels: {
+          totalDocs: "totalVideos",
+          docs: "videos",
+      },
+      skip: (page - 1) * limit,
+      limit: parseInt(limit),
   };
-  Video.aggregatePaginate(videoAggregate, options)
-    .then((result) => {
-      if (result?.videos?.length === 0) {
-        return res
-          .status(200)
-          .json(new ApiResponse(200, [], "No videos found"));
-      }
 
-      return res
-        .status(200)
-        .json(new ApiResponse(200, result, "video fetched successfully"));
-    })
-    .catch((error) => {
-      throw new ApiError(
-        500,
-        error?.message || "Internal server error in video aggregate Paginate"
-      );
-    });
+  Video.aggregatePaginate(videoAggregate, options)
+      .then(result => {
+          if (result?.videos?.length === 0) {
+              return res.status(200).json(new ApiResponse(200, [], "No videos found"));
+          }
+
+          return res.status(200).json(new ApiResponse(200, result, "Videos fetched successfully"));
+      })
+      .catch(error => {
+          throw new ApiError(500, error?.message || "Internal server error in video aggregate paginate");
+      });
 });
+
 
 const publishAVideo = asyncHandler(async (req, res) => {
   const { title, description } = req.body;
@@ -136,7 +116,6 @@ const publishAVideo = asyncHandler(async (req, res) => {
     .status(201)
     .json(new ApiResponse(200, videoPublished, "Video Published Successfully"));
 });
-
 
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
