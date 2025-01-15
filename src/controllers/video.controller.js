@@ -16,22 +16,87 @@ const getAllVideos = asyncHandler(async (req, res) => {
     userId = "",
   } = req.query;
 
-  const videoAggregate = await Video.aggregate([
-    {
-      $match:{
-        $or:[
-          {
-            "title":{$regex:query,$optios:"i"}
-          },
-          {
-            "description":{$regex:query,$optios:"i"}
-          }
-        ]
+  try {
+    const videoAggregate = await Video.aggregate([
+      {
+        $match: {
+          $or: [
+            {
+              title: { $regex: query, $optios: "i" },
+            },
+            {
+              description: { $regex: query, $optios: "i" },
+            },
+          ],
+        },
       },
-      
-    }
-  ])
+      {
+        $lookup: {
+          from: "User",
+          localField: "owner",
+          foreignField: "_id",
+          as: "owner",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                fullname: 1,
+                avatar: 1,
+                username: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          owner: {
+            $first: "$owner",
+          },
+        },
+      },
 
+      {
+        $sort: {
+          [sortBy || "createdAt"]: sortType || 1,
+        },
+      },
+    ]);
+  } catch (error) {
+    throw new ApiError(
+      500,
+      error.message || "Internal server error in video aggregation"
+    );
+  }
+
+  const options = {
+    page,
+    limit,
+    customLabels: {
+      totalDocs: "totalVideos",
+      docs: "videos",
+    },
+    skip: (page - 1) * limit,
+    limit: parseInt(limit),
+  };
+  Video.aggregatePaginate(videoAggregate, options)
+    .then((result) => {
+      if (result?.videos?.length === 0) {
+        return res
+          .status(200)
+          .json(new ApiResponse(200, [], "No videos found"));
+      }
+
+      return res
+        .status(200)
+        .json(new ApiResponse(200, result, "video fetched successfully"));
+    })
+    .catch((error) => {
+      throw new ApiError(
+        500,
+        error?.message || "Internal server error in video aggregate Paginate"
+      );
+    });
 });
 
 const publishAVideo = asyncHandler(async (req, res) => {
@@ -71,6 +136,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
     .status(201)
     .json(new ApiResponse(200, videoPublished, "Video Published Successfully"));
 });
+
 
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
