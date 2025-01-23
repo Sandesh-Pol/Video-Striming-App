@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import { Comment } from "../models/comment.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -18,7 +17,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
     .skip(skip)
     .limit(limit);
 
-  return ews
+  return res
     .status(200)
     .json(new ApiResponse(200, commemt, "Comments fatch succesfully..!"));
 });

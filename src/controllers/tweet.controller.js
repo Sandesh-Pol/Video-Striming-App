@@ -46,7 +46,7 @@ const updateTweet = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Content is not filled...!");
   }
 
-  const updateTweetContedt = await Tweet.findByIdAndUpdate(
+  const updateTweetContent = await Tweet.findByIdAndUpdate(
     tweetId,
     {
       $set: {

@@ -177,7 +177,7 @@ const updateVideo = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Thumbanil file is messing...!");
   }
 
-  const thumbnailUplode = await uploadOnCloudinary(thumbnailLocalPath);
+  const thumbnailUpload = await uploadOnCloudinary(thumbnailLocalPath);
 
   if (!thumbnailUpload.url) {
     throw new ApiError(400, "Error while uloading thumbnail");
