@@ -7,28 +7,42 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET // Corrected the environment variable
 });
 
-const uploadOnCloudinary = async (localFilePath) => {
-    try {
-        if (!localFilePath) throw new Error("No file path provided");
+const uploadOnCloudinary = async (localFilePath)=>{
+    try{
+        if(!localFilePath) return null
 
-        const response = await cloudinary.uploader.upload(localFilePath, {
-            resource_type: "auto"
-        });
-
-        console.log("File uploaded successfully:", response.url);
-        return response;
-    } catch (error) {
-        console.error("Error during upload:", error.message);
-        
-        try {
-            await fs.unlink(localFilePath);
-        } catch (unlinkError) {
-            console.error("Error deleting temporary file:", unlinkError.message);
+        if(localFilePath.fieldname === "avatar" || localFilePath.fieldname === "coverImage"){
+            const localPath = localFilePath.path;
+            const response = await cloudinary.uploader.upload(localPath, {
+                resource_type: "auto",
+                    folder: "videoweb",
+                    width: 150,
+                    crop: "scale",
+            })
+            fs.unlinkSync(localFilePath.path);
+            return response
         }
 
-        return "Failed to upload...!";
+            // upload the file on cloudinay
+            const response = await cloudinary.uploader.upload(localFilePath, {
+                resource_type: "auto",
+                    folder: "videoweb",
+                    crop: "scale",
+
+            })
+        // file has been uploaded successfully
+        // console.log("file is uploaded or cloudinary", response.url);
+        fs.unlinkSync(localFilePath);
+        return response
+    } catch(error){
+        if(localFilePath.fieldname === "avatar" || localFilePath.fieldname === "coverImage"){
+        fs.unlinkSync(localFilePath.path) // remove the locally saved temporary file as the upload operation got failed
+        }else{
+            fs.unlinkSync(localFilePath) // remove the locally saved temporary file as the upload operation got failed
+        }
+        return null
     }
-};
+}
 
 
 const deleteFromCloudinary = async (publicId) => {
